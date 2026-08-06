@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ising-solver-nvidia"
+version = "0.3.0rc1"
+description = "NVIDIA cuOpt MILP Ising miner for the quip.network v0.3 protocol"
+readme = "README.md"
+# Floor set by quip_proto, which requires >=3.11.
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0-or-later" }
+
+# quip_proto is the PyO3 SDK (miner gRPC stubs + scoring/wire/session). Tracks
+# quip-protocol's `v0.3` branch and is built from source via maturin until it is
+# published to PyPI (needs Rust + protoc at install time).
+dependencies = [
+    "quip_proto @ git+https://gitlab.com/quip.network/quip-protocol.git@v0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+# Console entry point must be exactly quip-cuopt-milp — isingmark resolves
+# that binary name from $PATH.
+[project.scripts]
+quip-cuopt-milp = "quip_miner_cuopt.cli:main"
+
+[project.urls]
+Repository = "https://gitlab.com/quip.network/ising-solver-nvidia"
+
+[tool.setuptools.packages.find]
+include = ["quip_miner_cuopt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
