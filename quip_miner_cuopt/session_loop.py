@@ -32,6 +32,138 @@ logger = logging.getLogger(__name__)
 
 _STOP = object()
 
+# Operator log token. Distinct from BACKEND ("cuopt-milp"), which is the
+# protocol advertisement. Mixed-fleet lines use [quip-miner-cuopt].
+_LOG_BACKEND = "cuopt"
+
+
+def _short_job_id(job_id: bytes) -> str:
+    """Render the leading bytes of a job id, matching quip-miner-core."""
+    head = bytes(job_id[:8]).hex()
+    if len(job_id) > 8:
+        return head + ".."
+    return head
+
+
+def _energy_units(milli: int) -> int:
+    """Floor-divide a milli-energy to whole units for a log line."""
+    return milli // 1000
+
+
+def _format_duration_ms(ms: int) -> str:
+    """Render a millisecond duration with the shared miner buckets."""
+    if ms < 1_000:
+        return f"{ms}ms"
+    if ms < 60_000:
+        tenths = (ms + 50) // 100
+        if tenths >= 600:
+            return "1m 0s"
+        secs = tenths // 10
+        frac = tenths % 10
+        return f"{secs}.{frac}s"
+    if ms < 3_600_000:
+        mins = ms // 60_000
+        rem = ms % 60_000
+        secs = (rem + 500) // 1_000
+        if secs == 60:
+            mins += 1
+            secs = 0
+        if mins >= 60:
+            return f"{mins // 60}h {mins % 60}m"
+        return f"{mins}m {secs}s"
+    hours = ms // 3_600_000
+    rem = ms % 3_600_000
+    mins = (rem + 30_000) // 60_000
+    if mins == 60:
+        hours += 1
+        mins = 0
+    return f"{hours}h {mins}m"
+
+
+def _reject_reason_name(reason: int) -> str:
+    try:
+        return miner_pb2.RejectReason.Name(reason)
+    except ValueError:
+        return str(reason)
+
+
+def log_attempt(
+    job_id: bytes,
+    *,
+    energy_milli: Optional[int] = None,
+    valid: int = 0,
+    total: int = 0,
+    wall_ms: int = 0,
+    device_ms: int = 0,
+    rejected: Optional[str] = None,
+    cancelled: bool = False,
+) -> None:
+    """Emit one per-attempt line in the shared miner format."""
+    job = _short_job_id(job_id)
+    wall = _format_duration_ms(wall_ms)
+    if cancelled:
+        logger.debug(
+            "[quip-miner-%s] attempt %s: cancelled after %s",
+            _LOG_BACKEND,
+            job,
+            wall,
+        )
+        return
+    if rejected is not None:
+        logger.warning(
+            "[quip-miner-%s] attempt %s: rejected %s | %s wall",
+            _LOG_BACKEND,
+            job,
+            rejected,
+            wall,
+        )
+        return
+    energy = "n/a" if energy_milli is None else str(_energy_units(energy_milli))
+    device = _format_duration_ms(device_ms)
+    logger.info(
+        "[quip-miner-%s] attempt %s: energy %s, valid %d/%d | %s wall, %s device",
+        _LOG_BACKEND,
+        job,
+        energy,
+        valid,
+        total,
+        wall,
+        device,
+    )
+
+
+def log_progress(
+    *,
+    jobs_done: int,
+    elapsed_s: float,
+    reads: int,
+    sweeps: int,
+    best_energy_milli: Optional[int],
+    max_energy_milli: Optional[int],
+    min_solutions: int,
+) -> None:
+    """Emit the shared progress line every N completed jobs."""
+    rate = jobs_done / elapsed_s if elapsed_s > 0 else 0.0
+    best = "n/a" if best_energy_milli is None else str(_energy_units(best_energy_milli))
+    if max_energy_milli is None:
+        requirement = "no target set"
+    else:
+        requirement = "requires energy<={}, solutions>={}".format(
+            _energy_units(max_energy_milli),
+            min_solutions,
+        )
+    logger.info(
+        "[quip-miner-%s] progress: %d jobs | %.1f jobs/s | reads=%d sweeps=%d"
+        " | best=%s | %s",
+        _LOG_BACKEND,
+        jobs_done,
+        rate,
+        reads,
+        sweeps,
+        best,
+        requirement,
+    )
+
 
 def _status(
     miner_id: str, jobs_done: int = 0, abandoned: int = 0
@@ -110,6 +242,7 @@ def run_session(
 
     def process_job(job, s_nodes, s_edges, s_hash, s_target):
         nonlocal jobs_done, best_energy_milli
+        started = time.monotonic()
         replies = handle_job(
             job,
             client,
@@ -119,11 +252,13 @@ def run_session(
             session_target=s_target,
             default_time_limit_s=default_time_limit_s,
         )
+        wall_ms = int((time.monotonic() - started) * 1000)
         for reply in replies:
             kind = reply.WhichOneof("msg")
             with state_lock:
                 if kind == "result":
                     jobs_done += 1
+                    meta = reply.result.meta
                     job_best = min(
                         (s.energy_milli for s in reply.result.solutions),
                         default=None,
@@ -132,17 +267,46 @@ def run_session(
                         best_energy_milli is None or job_best < best_energy_milli
                     ):
                         best_energy_milli = job_best
-                    if jobs_done % progress_log_interval == 0:
-                        secs = time.monotonic() - session_start
-                        rate = jobs_done / secs if secs > 0 else 0.0
-                        logger.info(
-                            "cuopt progress: %d jobs | %.1f jobs/s | best=%s milli",
-                            jobs_done,
-                            rate,
-                            best_energy_milli
-                            if best_energy_milli is not None
-                            else "n/a",
+                    if s_target is not None:
+                        valid = sum(
+                            1
+                            for s in reply.result.solutions
+                            if s.energy_milli <= s_target.max_energy_milli
                         )
+                    else:
+                        valid = len(reply.result.solutions)
+                    log_attempt(
+                        job.job_id,
+                        energy_milli=job_best,
+                        valid=valid,
+                        total=len(reply.result.solutions),
+                        wall_ms=wall_ms,
+                        device_ms=meta.device_access_time_us // 1000,
+                    )
+                    if jobs_done % progress_log_interval == 0:
+                        log_progress(
+                            jobs_done=jobs_done,
+                            elapsed_s=time.monotonic() - session_start,
+                            reads=meta.reads,
+                            sweeps=meta.sweeps,
+                            best_energy_milli=best_energy_milli,
+                            max_energy_milli=(
+                                s_target.max_energy_milli
+                                if s_target is not None
+                                else None
+                            ),
+                            min_solutions=(
+                                int(s_target.min_solutions)
+                                if s_target is not None
+                                else 0
+                            ),
+                        )
+                elif kind == "reject":
+                    log_attempt(
+                        job.job_id,
+                        rejected=_reject_reason_name(reply.reject.reason),
+                        wall_ms=wall_ms,
+                    )
             out_q.put(reply)
 
     exit_code = EXIT_CLEAN
@@ -221,6 +385,7 @@ def run_session(
                 with state_lock:
                     cancelled = _is_abandoned(cm.job.generation, cancel_watermark)
                 if cancelled:
+                    log_attempt(cm.job.job_id, cancelled=True, wall_ms=0)
                     out_q.put(
                         miner_pb2.MinerMsg(job_request=miner_pb2.JobRequest(credits=1))
                     )
