@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ising-solver-nvidia"
-version = "0.3.0rc1"
+version = "0.3.0rc2"
 description = "NVIDIA cuOpt MILP Ising miner for the quip.network v0.3 protocol"
 readme = "README.md"
 # Floor set by quip_proto, which requires >=3.11.
