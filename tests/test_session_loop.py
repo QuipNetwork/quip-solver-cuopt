@@ -28,7 +28,7 @@ def test_attempt_line_matches_the_shared_format(caplog):
             device_ms=21_000,
         )
     assert (
-        "[quip-miner-cuopt] attempt 1858b8caf35ae0df..: "
+        "[quip-solver-cuopt] attempt 1858b8caf35ae0df..: "
         "energy -14245, valid 0/106 | 21.0s wall, 21.0s device" in caplog.text
     )
     assert caplog.records[0].levelno == logging.INFO
@@ -38,7 +38,7 @@ def test_rejected_attempt_line_matches_the_shared_format(caplog):
     with caplog.at_level(logging.WARNING):
         log_attempt(_JOB_ID, rejected="MALFORMED", wall_ms=21_000)
     assert (
-        "[quip-miner-cuopt] attempt 1858b8caf35ae0df..: "
+        "[quip-solver-cuopt] attempt 1858b8caf35ae0df..: "
         "rejected MALFORMED | 21.0s wall" in caplog.text
     )
     assert caplog.records[0].levelno == logging.WARNING
@@ -48,7 +48,7 @@ def test_cancelled_attempt_line_is_debug(caplog):
     with caplog.at_level(logging.DEBUG):
         log_attempt(_JOB_ID, cancelled=True, wall_ms=21_000)
     assert (
-        "[quip-miner-cuopt] attempt 1858b8caf35ae0df..: cancelled after 21.0s"
+        "[quip-solver-cuopt] attempt 1858b8caf35ae0df..: cancelled after 21.0s"
         in caplog.text
     )
     assert caplog.records[0].levelno == logging.DEBUG
@@ -68,7 +68,7 @@ def test_progress_line_matches_the_shared_format(caplog):
             min_solutions=1,
         )
     assert (
-        "[quip-miner-cuopt] progress: 10 jobs | 0.5 jobs/s | reads=1 sweeps=0 | "
+        "[quip-solver-cuopt] progress: 10 jobs | 0.5 jobs/s | reads=1 sweeps=0 | "
         "best=-14245 | requires energy<=-14000, solutions>=1" in caplog.text
     )
     assert caplog.records[0].levelno == logging.INFO
@@ -88,6 +88,6 @@ def test_progress_line_without_a_target_says_so(caplog):
             min_solutions=0,
         )
     assert (
-        "[quip-miner-cuopt] progress: 10 jobs | 0.5 jobs/s | reads=1 sweeps=0 | "
+        "[quip-solver-cuopt] progress: 10 jobs | 0.5 jobs/s | reads=1 sweeps=0 | "
         "best=n/a | no target set" in caplog.text
     )

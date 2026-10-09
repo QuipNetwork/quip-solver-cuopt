@@ -1,6 +1,6 @@
 """gRPC session loop: Hello → Welcome → Configure → credit/job cycle.
 
-Mirrors ``quip_miner_dwave.session_loop`` using the ``quip_proto`` Python SDK.
+Mirrors ``quip_solver_dwave.session_loop`` using the ``quip_proto`` Python SDK.
 Uses the synchronous gRPC client with a request queue (reliable over UDS).
 """
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 _STOP = object()
 
 # Operator log token. Distinct from BACKEND ("cuopt-milp"), which is the
-# protocol advertisement. Mixed-fleet lines use [quip-miner-cuopt].
+# protocol advertisement. Mixed-fleet lines use [quip-solver-cuopt].
 _LOG_BACKEND = "cuopt"
 
 
@@ -103,7 +103,7 @@ def log_attempt(
     wall = _format_duration_ms(wall_ms)
     if cancelled:
         logger.debug(
-            "[quip-miner-%s] attempt %s: cancelled after %s",
+            "[quip-solver-%s] attempt %s: cancelled after %s",
             _LOG_BACKEND,
             job,
             wall,
@@ -111,7 +111,7 @@ def log_attempt(
         return
     if rejected is not None:
         logger.warning(
-            "[quip-miner-%s] attempt %s: rejected %s | %s wall",
+            "[quip-solver-%s] attempt %s: rejected %s | %s wall",
             _LOG_BACKEND,
             job,
             rejected,
@@ -121,7 +121,7 @@ def log_attempt(
     energy = "n/a" if energy_milli is None else str(_energy_units(energy_milli))
     device = _format_duration_ms(device_ms)
     logger.info(
-        "[quip-miner-%s] attempt %s: energy %s, valid %d/%d | %s wall, %s device",
+        "[quip-solver-%s] attempt %s: energy %s, valid %d/%d | %s wall, %s device",
         _LOG_BACKEND,
         job,
         energy,
@@ -153,7 +153,7 @@ def log_progress(
             min_solutions,
         )
     logger.info(
-        "[quip-miner-%s] progress: %d jobs | %.1f jobs/s | reads=%d sweeps=%d"
+        "[quip-solver-%s] progress: %d jobs | %.1f jobs/s | reads=%d sweeps=%d"
         " | best=%s | %s",
         _LOG_BACKEND,
         jobs_done,
