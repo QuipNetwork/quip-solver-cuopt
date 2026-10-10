@@ -6,7 +6,7 @@ import logging
 import time
 from typing import List, Optional, Sequence, Tuple
 
-from quip_proto import miner_pb2, wire
+from quip_solver_core import miner_pb2, wire
 
 from quip_miner_cuopt import DEFAULT_TIME_LIMIT_S
 from quip_miner_cuopt.client import (

@@ -7,15 +7,16 @@ name = "ising-solver-nvidia"
 version = "0.3.0rc2"
 description = "NVIDIA cuOpt MILP Ising miner for the quip.network v0.3 protocol"
 readme = "README.md"
-# Floor set by quip_proto, which requires >=3.11.
+# Floor set by quip_solver_core, which requires >=3.11.
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-or-later" }
 
-# quip_proto is the PyO3 SDK (miner gRPC stubs + scoring/wire/session). Tracks
-# quip-protocol's `v0.3` branch and is built from source via maturin until it is
-# published to PyPI (needs Rust + protoc at install time).
+# quip_solver_core is the published PyO3 SDK (miner gRPC stubs +
+# scoring/wire/session), installed as a prebuilt wheel from PyPI. The version
+# is exact, as in quip-solver-dwave, so installs resolve the same consensus
+# primitives. Move the pin deliberately.
 dependencies = [
-    "quip_proto @ git+https://gitlab.com/quip.network/quip-protocol.git@v0.3",
+    "quip-solver-core==0.0.1rc2",
 ]
 
 [project.optional-dependencies]

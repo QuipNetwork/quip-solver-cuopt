@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict
 
 import pytest
-from quip_proto import miner_pb2, wire
+from quip_solver_core import miner_pb2, wire
 
 from quip_miner_cuopt.client import CuoptClient
 from quip_miner_cuopt.job import handle_job
