@@ -1,6 +1,6 @@
 """gRPC session loop: Hello → Welcome → Configure → credit/job cycle.
 
-Mirrors ``quip_solver_dwave.session_loop`` using the ``quip_proto`` Python SDK.
+Mirrors ``quip_solver_dwave.session_loop`` using the ``quip_solver_core`` Python SDK.
 Uses the synchronous gRPC client with a request queue (reliable over UDS).
 """
 
@@ -14,8 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Iterator, Optional, Tuple
 
 import grpc
-from quip_proto import miner_pb2, miner_pb2_grpc
-from quip_proto import session as session_sdk
+from quip_solver_core import miner_pb2, miner_pb2_grpc
+from quip_solver_core import session as session_sdk
 
 from quip_miner_cuopt import (
     ALGORITHM,

@@ -7,7 +7,7 @@ Each Ising job is cast as a mixed-integer linear program (binary spins as `x`,
 continuous products as `y`), solved over REST against a self-hosted cuOpt
 server, and scored from the decoded spins in integer milli arithmetic. The
 package does not require CUDA or the cuOpt Python package at install time; any
-machine that can install `quip_proto` can install and test this miner.
+machine that can install `quip-solver-core` can install and test this miner.
 
 ## Binary
 
@@ -23,7 +23,6 @@ isingmark resolves the binary name `quip-cuopt-milp` from `$PATH`.
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-# needs Rust + protoc for quip_proto (maturin)
 ```
 
 ## Running

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from quip_proto import miner_pb2
+from quip_solver_core import miner_pb2
 
 from quip_miner_cuopt import DEFAULT_TIME_LIMIT_S
 from quip_miner_cuopt.client import resolve_time_limit_s
