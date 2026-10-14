@@ -1,6 +1,6 @@
 """Linearization unit tests for J > 0, J < 0, J == 0 and a worked 3-node case."""
 
-from quip_miner_cuopt.linearize import (
+from quip_solver_cuopt.linearize import (
     brute_force_ising_ground,
     brute_force_milp_optimum,
     ising_energy,

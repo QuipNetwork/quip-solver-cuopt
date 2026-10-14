@@ -8,14 +8,14 @@ from typing import List, Optional, Sequence, Tuple
 
 from quip_solver_core import miner_pb2, wire
 
-from quip_miner_cuopt import DEFAULT_TIME_LIMIT_S
-from quip_miner_cuopt.client import (
+from quip_solver_cuopt import DEFAULT_TIME_LIMIT_S
+from quip_solver_cuopt.client import (
     CuoptClient,
     CuoptError,
     log_dual_bound,
     resolve_time_limit_s,
 )
-from quip_miner_cuopt.linearize import ising_energy_milli, linearize, x_to_spins
+from quip_solver_cuopt.linearize import ising_energy_milli, linearize, x_to_spins
 
 logger = logging.getLogger(__name__)
 

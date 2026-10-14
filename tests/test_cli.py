@@ -6,8 +6,8 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from quip_miner_cuopt import EXIT_CLEAN, EXIT_ENV_INCOMPATIBLE
-from quip_miner_cuopt.cli import main
+from quip_solver_cuopt import EXIT_CLEAN, EXIT_ENV_INCOMPATIBLE
+from quip_solver_cuopt.cli import main
 
 
 def test_capabilities():
@@ -65,7 +65,7 @@ def test_check_ok():
 
 
 def test_session_requires_coordinator():
-    from quip_miner_cuopt import EXIT_CONFIG_INVALID
+    from quip_solver_cuopt import EXIT_CONFIG_INVALID
 
     code = main([])
     assert code == EXIT_CONFIG_INVALID

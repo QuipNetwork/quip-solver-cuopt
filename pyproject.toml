@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ising-solver-nvidia"
+name = "quip-solver-cuopt"
 version = "0.3.0rc2"
 description = "NVIDIA cuOpt MILP Ising miner for quip.network protocol version 2"
 readme = "README.md"
@@ -25,13 +25,13 @@ dev = ["pytest", "ruff"]
 # Console entry point must be exactly quip-cuopt-milp — isingmark resolves
 # that binary name from $PATH.
 [project.scripts]
-quip-cuopt-milp = "quip_miner_cuopt.cli:main"
+quip-cuopt-milp = "quip_solver_cuopt.cli:main"
 
 [project.urls]
-Repository = "https://gitlab.com/quip.network/ising-solver-nvidia"
+Repository = "https://gitlab.com/quip.network/quip-solver-cuopt"
 
 [tool.setuptools.packages.find]
-include = ["quip_miner_cuopt*"]
+include = ["quip_solver_cuopt*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

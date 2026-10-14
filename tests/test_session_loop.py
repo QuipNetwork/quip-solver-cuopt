@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from quip_miner_cuopt.session_loop import log_attempt, log_progress
+from quip_solver_cuopt.session_loop import log_attempt, log_progress
 
 # First 8 bytes of a longer job id, matching the observed CPU miner line.
 _JOB_ID = bytes.fromhex("1858b8caf35ae0df") + b"\x00\x01"

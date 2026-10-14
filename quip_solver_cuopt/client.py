@@ -15,8 +15,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from quip_miner_cuopt import DEFAULT_CUOPT_URL, DEFAULT_TIME_LIMIT_S
-from quip_miner_cuopt.linearize import MilpModel
+from quip_solver_cuopt import DEFAULT_CUOPT_URL, DEFAULT_TIME_LIMIT_S
+from quip_solver_cuopt.linearize import MilpModel
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-"""CLI for ``quip-cuopt-milp`` / ``python -m quip_miner_cuopt``."""
+"""CLI for ``quip-cuopt-milp`` / ``python -m quip_solver_cuopt``."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 
 from google.protobuf import json_format
 
-from quip_miner_cuopt import (
+from quip_solver_cuopt import (
     DEFAULT_CUOPT_URL,
     DEFAULT_TIME_LIMIT_S,
     EXIT_CLEAN,
@@ -19,8 +19,8 @@ from quip_miner_cuopt import (
     EXIT_INTERNAL_FATAL,
     __version__,
 )
-from quip_miner_cuopt.client import CuoptClient, CuoptError
-from quip_miner_cuopt.session_loop import capabilities_message, run_session_sync
+from quip_solver_cuopt.client import CuoptClient, CuoptError
+from quip_solver_cuopt.session_loop import capabilities_message, run_session_sync
 
 
 def build_parser() -> argparse.ArgumentParser:

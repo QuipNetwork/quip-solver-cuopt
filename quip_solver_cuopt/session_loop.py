@@ -17,16 +17,16 @@ import grpc
 from quip_solver_core import miner_pb2, miner_pb2_grpc
 from quip_solver_core import session as session_sdk
 
-from quip_miner_cuopt import (
+from quip_solver_cuopt import (
     EXIT_CLEAN,
     EXIT_INTERNAL_FATAL,
     EXIT_TOKEN_REJECTED,
     MAX_EDGES,
     MAX_NODES,
 )
-from quip_miner_cuopt.client import CuoptClient
-from quip_miner_cuopt.config import warn_unknown_backend_keys
-from quip_miner_cuopt.job import handle_job
+from quip_solver_cuopt.client import CuoptClient
+from quip_solver_cuopt.config import warn_unknown_backend_keys
+from quip_solver_cuopt.job import handle_job
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def capabilities_message() -> miner_pb2.Capabilities:
 
 
 def _short_job_id(job_id: bytes) -> str:
-    """Render the leading bytes of a job id, matching quip-miner-core."""
+    """Render the leading bytes of a job id, matching quip-solver-core."""
     head = bytes(job_id[:8]).hex()
     if len(job_id) > 8:
         return head + ".."

@@ -1,6 +1,6 @@
 """NVIDIA cuOpt MILP Ising miner for quip.network protocol version 2.
 
-Binary entry point: ``quip-cuopt-milp`` (``python -m quip_miner_cuopt``).
+Binary entry point: ``quip-cuopt-milp`` (``python -m quip_solver_cuopt``).
 """
 
 __version__ = "0.3.0rc1"

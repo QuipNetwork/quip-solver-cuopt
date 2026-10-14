@@ -11,9 +11,9 @@ from typing import Any, Dict
 import pytest
 from quip_solver_core import miner_pb2, wire
 
-from quip_miner_cuopt.client import CuoptClient
-from quip_miner_cuopt.job import handle_job
-from quip_miner_cuopt.linearize import (
+from quip_solver_cuopt.client import CuoptClient
+from quip_solver_cuopt.job import handle_job
+from quip_solver_cuopt.linearize import (
     brute_force_ising_ground,
     ising_energy_milli,
     linearize,
@@ -149,7 +149,7 @@ def test_ground_parity_local():
     edges = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 4)]
     j = [1.0, 2.0, 1.0, 1.0, 2.0]
     model = linearize(h, j, edges)
-    from quip_miner_cuopt.linearize import brute_force_milp_optimum
+    from quip_solver_cuopt.linearize import brute_force_milp_optimum
 
     x, milp_e = brute_force_milp_optimum(model)
     spins = x_to_spins(x)

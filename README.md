@@ -1,7 +1,7 @@
-# ising-solver-nvidia
+# quip-solver-cuopt
 
 NVIDIA cuOpt MILP Ising miner for the [quip.network](https://gitlab.com/quip.network)
-protocol version 2. Package name: `quip_miner_cuopt`. Binary: `quip-cuopt-milp`.
+protocol version 2. Package name: `quip_solver_cuopt`. Binary: `quip-cuopt-milp`.
 
 Each Ising job is cast as a mixed-integer linear program (binary spins as `x`,
 continuous products as `y`), solved over REST against a self-hosted cuOpt
