@@ -1,7 +1,7 @@
 # ising-solver-nvidia
 
 NVIDIA cuOpt MILP Ising miner for the [quip.network](https://gitlab.com/quip.network)
-v0.3 mining protocol. Package name: `quip_miner_cuopt`. Binary: `quip-cuopt-milp`.
+protocol version 2. Package name: `quip_miner_cuopt`. Binary: `quip-cuopt-milp`.
 
 Each Ising job is cast as a mixed-integer linear program (binary spins as `x`,
 continuous products as `y`), solved over REST against a self-hosted cuOpt
@@ -13,7 +13,11 @@ machine that can install `quip-solver-core` can install and test this miner.
 
 | binary | backend | algorithm |
 |--------|---------|-----------|
-| `quip-cuopt-milp` | `cuopt` | `milp` |
+| `quip-cuopt-milp` | `exec` | `external` |
+
+The wire has no cuOpt backend or MILP algorithm value, so the miner advertises
+`exec` (an external service) and `external` (no dedicated algorithm value).
+It accepts `I32` coefficients only and runs one job at a time.
 
 isingmark resolves the binary name `quip-cuopt-milp` from `$PATH`.
 
@@ -64,7 +68,7 @@ miner returns the single best incumbent from one solve.
 
 Per job the miner logs `mip_gap` and `solution_bound` from `milp_statistics`
 (also accepts the OpenAPI example name `mip_statistics`) to **stderr**. The
-v0.3 `Result` message has no field for a dual bound, so these values are not
+protocol `Result` message has no field for a dual bound, so these values are not
 returned on the protocol today.
 
 ## Formulation (summary)

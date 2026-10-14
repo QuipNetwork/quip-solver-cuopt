@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ising-solver-nvidia"
 version = "0.3.0rc2"
-description = "NVIDIA cuOpt MILP Ising miner for the quip.network v0.3 protocol"
+description = "NVIDIA cuOpt MILP Ising miner for quip.network protocol version 2"
 readme = "README.md"
 # Floor set by quip_solver_core, which requires >=3.11.
 requires-python = ">=3.11"
@@ -16,7 +16,7 @@ license = { text = "AGPL-3.0-or-later" }
 # is exact, as in quip-solver-dwave, so installs resolve the same consensus
 # primitives. Move the pin deliberately.
 dependencies = [
-    "quip-solver-core==0.0.1rc2",
+    "quip-solver-core==0.0.3",
 ]
 
 [project.optional-dependencies]

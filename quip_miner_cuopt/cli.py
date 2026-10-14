@@ -8,9 +8,9 @@ import logging
 import os
 import sys
 
+from google.protobuf import json_format
+
 from quip_miner_cuopt import (
-    ALGORITHM,
-    BACKEND,
     DEFAULT_CUOPT_URL,
     DEFAULT_TIME_LIMIT_S,
     EXIT_CLEAN,
@@ -20,13 +20,13 @@ from quip_miner_cuopt import (
     __version__,
 )
 from quip_miner_cuopt.client import CuoptClient, CuoptError
-from quip_miner_cuopt.session_loop import run_session_sync
+from quip_miner_cuopt.session_loop import capabilities_message, run_session_sync
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="quip-cuopt-milp",
-        description="QuIP NVIDIA cuOpt MILP Ising miner (v0.3 protocol)",
+        description="QuIP NVIDIA cuOpt MILP Ising miner (protocol 2)",
     )
     p.add_argument("--quip-coordinator", default=None, help="unix:// path or host")
     p.add_argument("--miner-id", default="cuopt-0")
@@ -91,18 +91,14 @@ def resolve_time_limit_s(cli_value: float | None) -> float:
 
 
 def print_capabilities() -> None:
-    print(
-        json.dumps(
-            {
-                "backend": BACKEND,
-                "algorithm": ALGORITHM,
-                "supported_kinds": ["ISING_SAMPLE"],
-                "max_nodes": 20000,
-                "max_edges": 200000,
-                "features": ["milp", "anneal-time-us"],
-            }
-        )
+    """Print the Hello capabilities as JSON, in the Rust solvers' shape."""
+    caps = json_format.MessageToDict(
+        capabilities_message(), always_print_fields_with_no_presence=True
     )
+    # Rust prints backend and algorithm by their lowercase command-line names.
+    caps["backend"] = "exec"
+    caps["algorithm"] = "external"
+    print(json.dumps(caps, separators=(",", ":")))
 
 
 def run_check(cuopt_url: str) -> int:
@@ -128,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     time_limit_s = resolve_time_limit_s(args.time_limit_s)
 
     if args.version:
-        print(f"quip-cuopt-milp {__version__} protocol 1")
+        print(f"quip-cuopt-milp {__version__} protocol 2")
         return EXIT_CLEAN
     if args.capabilities:
         print_capabilities()

@@ -74,8 +74,10 @@ def test_handle_job_ferro_pair(mock_cuopt):
         kind=miner_pb2.ISING_SAMPLE,
         deadline_ms=int(time.time() * 1000) + 3_600_000,
         ising=miner_pb2.IsingProblem(
-            h_milli_le32=wire.encode_i32_le(h_milli),
-            j_milli_le32=wire.encode_i32_le(j_milli),
+            encoding=miner_pb2.COEFFICIENT_ENCODING_I32,
+            scale=1000,
+            h=wire.encode_i32_le(h_milli),
+            j=wire.encode_i32_le(j_milli),
             edges=miner_pb2.EdgeList(u=[0], v=[1]),
             num_reads=1,
             anneal_time_us=1_000_000,
@@ -86,7 +88,7 @@ def test_handle_job_ferro_pair(mock_cuopt):
     assert "result" in kinds
     result = next(m.result for m in msgs if m.WhichOneof("msg") == "result")
     sol = result.solutions[0]
-    spins = wire.decode_spins(sol.spins_bytes)
+    spins = wire.decode_spins_packed(sol.spins, 2)
     assert sol.energy_milli == ising_energy_milli(spins, h_milli, j_milli, [(0, 1)])
     assert sol.energy_milli == -1000
 
@@ -129,7 +131,9 @@ def test_anneal_time_us_sent_as_time_limit(mock_cuopt):
             kind=miner_pb2.ISING_SAMPLE,
             deadline_ms=int(time.time() * 1000) + 3_600_000,
             ising=miner_pb2.IsingProblem(
-                h_milli_le32=wire.encode_i32_le([0]),
+                encoding=miner_pb2.COEFFICIENT_ENCODING_I32,
+                scale=1000,
+                h=wire.encode_i32_le([0]),
                 anneal_time_us=2_500_000,
             ),
         )
@@ -171,3 +175,69 @@ def test_ground_parity_local():
     assert ising_energy_milli(spins, h_m, j_m, edges) == ising_energy_milli(
         _gs, h_m, j_m, edges
     )
+
+
+def _coefficient_job(encoding: int, scale: int, h: list[int]) -> miner_pb2.Job:
+    return miner_pb2.Job(
+        job_id=b"coeff",
+        kind=miner_pb2.ISING_SAMPLE,
+        deadline_ms=int(time.time() * 1000) + 3_600_000,
+        ising=miner_pb2.IsingProblem(
+            encoding=encoding,
+            scale=scale,
+            h=wire.encode_i32_le(h),
+            edges=miner_pb2.EdgeList(u=[], v=[]),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("encoding", "scale", "h"),
+    [
+        (miner_pb2.COEFFICIENT_ENCODING_UNSPECIFIED, 1000, [0]),
+        (miner_pb2.COEFFICIENT_ENCODING_F64, 0, [0]),
+        (miner_pb2.COEFFICIENT_ENCODING_I32, 0, [0]),
+        # 1/3 is not a whole number of milli-units.
+        (miner_pb2.COEFFICIENT_ENCODING_I32, 3, [1]),
+        # 2^31 milli does not fit i32.
+        (miner_pb2.COEFFICIENT_ENCODING_I32, 1, [2**31 // 1000 + 1]),
+    ],
+)
+def test_bad_coefficients_reject_malformed(encoding, scale, h):
+    # The job is rejected before any request, so the client is never contacted.
+    client = CuoptClient("http://127.0.0.1:1")
+    msgs = handle_job(
+        _coefficient_job(encoding, scale, h),
+        client,
+        session_nodes=[],
+        session_edges=[],
+    )
+    assert [m.WhichOneof("msg") for m in msgs] == ["reject"]
+    assert msgs[0].reject.reason == miner_pb2.MALFORMED
+
+
+def test_partial_coefficient_element_rejects_malformed():
+    job = _coefficient_job(miner_pb2.COEFFICIENT_ENCODING_I32, 1000, [0])
+    job.ising.h = b"\x00\x00\x00"
+    msgs = handle_job(
+        job, CuoptClient("http://127.0.0.1:1"), session_nodes=[], session_edges=[]
+    )
+    assert msgs[0].reject.reason == miner_pb2.MALFORMED
+
+
+def test_unit_scale_coefficients_are_scored_in_milli(mock_cuopt):
+    # h = +2 at scale 1 is 2000 milli; x = 0 gives spin -1 and energy -2000.
+    _Handler.solution_body = {
+        "response": {
+            "solver_response": {
+                "status": "Optimal",
+                "solution": {"primal_solution": [0.0], "milp_statistics": {}},
+            }
+        }
+    }
+    job = _coefficient_job(miner_pb2.COEFFICIENT_ENCODING_I32, 1, [2])
+    msgs = handle_job(job, CuoptClient(mock_cuopt), session_nodes=[0], session_edges=[])
+    result = next(m.result for m in msgs if m.WhichOneof("msg") == "result")
+    sol = result.solutions[0]
+    assert wire.decode_spins_packed(sol.spins, 1) == [-1]
+    assert sol.energy_milli == -2000
