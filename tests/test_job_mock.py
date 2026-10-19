@@ -241,3 +241,24 @@ def test_unit_scale_coefficients_are_scored_in_milli(mock_cuopt):
     sol = result.solutions[0]
     assert wire.decode_spins_packed(sol.spins, 1) == [-1]
     assert sol.energy_milli == -2000
+
+
+def test_self_loop_edge_rejects_malformed():
+    job = miner_pb2.Job(
+        job_id=b"loop",
+        kind=miner_pb2.ISING_SAMPLE,
+        deadline_ms=int(time.time() * 1000) + 3_600_000,
+        ising=miner_pb2.IsingProblem(
+            encoding=miner_pb2.COEFFICIENT_ENCODING_I32,
+            scale=1000,
+            h=wire.encode_i32_le([0, 0]),
+            j=wire.encode_i32_le([-1000]),
+            edges=miner_pb2.EdgeList(u=[1], v=[1]),
+        ),
+    )
+    # The job is rejected before any request, so the client is never contacted.
+    msgs = handle_job(
+        job, CuoptClient("http://127.0.0.1:1"), session_nodes=[], session_edges=[]
+    )
+    assert [m.WhichOneof("msg") for m in msgs] == ["reject"]
+    assert msgs[0].reject.reason == miner_pb2.MALFORMED

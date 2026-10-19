@@ -156,6 +156,16 @@ def _resolve_problem(
         )
         raise _Rejected(miner_pb2.MALFORMED)
 
+    for u, v in edges:
+        if int(u) == int(v):
+            logger.warning(
+                "job %s: edge (%d, %d) is a self-loop; rejecting MALFORMED",
+                job_id.hex(),
+                u,
+                v,
+            )
+            raise _Rejected(miner_pb2.MALFORMED)
+
     # Dense positional edges for MILP / scoring (0..n-1).
     if edges and nodes and (min(nodes) != 0 or set(nodes) != set(range(len(nodes)))):
         # Map sparse qubit labels to dense positions.

@@ -19,6 +19,7 @@ from quip_solver_core import session as session_sdk
 
 from quip_solver_cuopt import (
     EXIT_CLEAN,
+    EXIT_CONFIG_INVALID,
     EXIT_INTERNAL_FATAL,
     EXIT_TOKEN_REJECTED,
     MAX_EDGES,
@@ -361,16 +362,18 @@ def run_session(
                     logger.error(
                         "bad Welcome protocol_version=%s", cm.welcome.protocol_version
                     )
+                    # 64, not 70: a version-skewed coordinator is a config
+                    # error the supervisor must not respawn into.
                     out_q.put(
                         miner_pb2.MinerMsg(
                             fatal=miner_pb2.Fatal(
-                                exit_code=EXIT_INTERNAL_FATAL,
+                                exit_code=EXIT_CONFIG_INVALID,
                                 reason="bad welcome protocol_version",
                                 restart_required=False,
                             )
                         )
                     )
-                    exit_code = EXIT_INTERNAL_FATAL
+                    exit_code = EXIT_CONFIG_INVALID
                     break
             elif which == "configure":
                 config = session_sdk.session_config_from_configure(
@@ -429,6 +432,8 @@ def run_session(
                 with state_lock:
                     done = jobs_done
                 out_q.put(_status(miner_id, done))
+            elif which == "get_capabilities":
+                out_q.put(miner_pb2.MinerMsg(capabilities=capabilities_message()))
             elif which == "shutdown":
                 grace_ms = cm.shutdown.grace_ms or 5000
                 break

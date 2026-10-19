@@ -9,6 +9,7 @@ import os
 import sys
 
 from google.protobuf import json_format
+from quip_solver_core import session
 
 from quip_solver_cuopt import (
     DEFAULT_CUOPT_URL,
@@ -92,12 +93,11 @@ def resolve_time_limit_s(cli_value: float | None) -> float:
 
 def print_capabilities() -> None:
     """Print the Hello capabilities as JSON, in the Rust solvers' shape."""
-    caps = json_format.MessageToDict(
-        capabilities_message(), always_print_fields_with_no_presence=True
-    )
+    msg = capabilities_message()
+    caps = json_format.MessageToDict(msg, always_print_fields_with_no_presence=True)
     # Rust prints backend and algorithm by their lowercase command-line names.
-    caps["backend"] = "exec"
-    caps["algorithm"] = "external"
+    caps["backend"] = session.BACKEND_NAMES[msg.backend]
+    caps["algorithm"] = session.ALGORITHM_NAMES[msg.algorithm]
     print(json.dumps(caps, separators=(",", ":")))
 
 
