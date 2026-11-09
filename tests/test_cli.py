@@ -6,8 +6,8 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from quip_miner_cuopt import EXIT_CLEAN, EXIT_ENV_INCOMPATIBLE
-from quip_miner_cuopt.cli import main
+from quip_solver_cuopt import EXIT_CLEAN, EXIT_ENV_INCOMPATIBLE
+from quip_solver_cuopt.cli import main
 
 
 def test_capabilities():
@@ -19,10 +19,13 @@ def test_capabilities():
 def test_capabilities_json_shape(capsys):
     assert main(["--capabilities"]) == EXIT_CLEAN
     data = json.loads(capsys.readouterr().out)
-    assert data["backend"] == "cuopt"
-    assert data["algorithm"] == "milp"
-    assert "ISING_SAMPLE" in data["supported_kinds"]
-    assert "anneal-time-us" in data["features"]
+    assert data["backend"] == "exec"
+    assert data["algorithm"] == "external"
+    assert data["supportedKinds"] == ["ISING_SAMPLE"]
+    assert data["protocolVersion"] == 2
+    assert data["encodings"] == ["COEFFICIENT_ENCODING_I32"]
+    assert data["streamWidth"] == 1
+    assert data["features"] == []
 
 
 def test_version(capsys):
@@ -30,6 +33,7 @@ def test_version(capsys):
     out = capsys.readouterr().out
     assert "quip-cuopt-milp" in out
     assert "0.3.0rc1" in out
+    assert "protocol 2" in out
 
 
 def test_check_fail_names_url(capsys):
@@ -61,7 +65,7 @@ def test_check_ok():
 
 
 def test_session_requires_coordinator():
-    from quip_miner_cuopt import EXIT_CONFIG_INVALID
+    from quip_solver_cuopt import EXIT_CONFIG_INVALID
 
     code = main([])
     assert code == EXIT_CONFIG_INVALID

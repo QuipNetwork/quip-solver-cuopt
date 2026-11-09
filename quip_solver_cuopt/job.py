@@ -8,14 +8,14 @@ from typing import List, Optional, Sequence, Tuple
 
 from quip_solver_core import miner_pb2, wire
 
-from quip_miner_cuopt import DEFAULT_TIME_LIMIT_S
-from quip_miner_cuopt.client import (
+from quip_solver_cuopt import DEFAULT_TIME_LIMIT_S
+from quip_solver_cuopt.client import (
     CuoptClient,
     CuoptError,
     log_dual_bound,
     resolve_time_limit_s,
 )
-from quip_miner_cuopt.linearize import ising_energy_milli, linearize, x_to_spins
+from quip_solver_cuopt.linearize import ising_energy_milli, linearize, x_to_spins
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,32 @@ def now_unix_ms() -> int:
     return int(time.time() * 1000)
 
 
-def decode_milli_i32(raw: bytes) -> List[int]:
-    """Decode little-endian i32 milli array. Raises ValueError if bad."""
-    return list(wire.decode_i32_le(raw))
+def _to_milli(raw: bytes, scale: int) -> List[int]:
+    """Convert little-endian i32 values at ``scale`` to exact i32 milli-units.
+
+    Raises ValueError for a partial element, a value that is not a whole
+    number of milli-units, or one outside i32.
+    """
+    milli: List[int] = []
+    for value in wire.decode_i32_le(raw):
+        converted, remainder = divmod(value * 1000, scale)
+        if remainder or not -(2**31) <= converted < 2**31:
+            raise ValueError(f"coefficient {value}/{scale} is not exact i32 milli")
+        milli.append(converted)
+    return milli
 
 
-def decode_milli_f64(raw: bytes) -> List[float]:
-    return [v / 1000.0 for v in decode_milli_i32(raw)]
+def decode_coefficients_milli(
+    ising: miner_pb2.IsingProblem,
+) -> Tuple[List[int], List[int]]:
+    """Decode ``(h, j)`` to integer milli-units. Raises ValueError if bad.
+
+    Only I32 is advertised, so any other encoding, or a zero scale, is
+    malformed.
+    """
+    if ising.encoding != miner_pb2.COEFFICIENT_ENCODING_I32 or ising.scale == 0:
+        raise ValueError("coefficients must be I32 with a positive scale")
+    return _to_milli(ising.h, ising.scale), _to_milli(ising.j, ising.scale)
 
 
 def edges_of(ising: miner_pb2.IsingProblem) -> List[Tuple[int, int]]:
@@ -58,8 +77,9 @@ def resolve_graph(
     return list(session_nodes), list(session_edges)
 
 
-def spins_to_bytes(spins: Sequence[int]) -> bytes:
-    return wire.encode_spins(list(spins))
+def pack_spins(spins: Sequence[int]) -> bytes:
+    """Bit-pack spins for ``Solution.spins`` (node i is bit i % 8 of byte i / 8)."""
+    return bytes(wire.encode_spins_packed(list(spins)))
 
 
 class _Rejected(Exception):
@@ -78,7 +98,7 @@ def _validate_job(
     job: miner_pb2.Job,
     session_hash: Optional[bytes],
 ) -> Tuple[miner_pb2.IsingProblem, List[int], List[int]]:
-    """Check job-level invariants and decode the milli arrays as integers."""
+    """Check job-level invariants and decode the coefficients as integer milli."""
     if job.kind not in (
         miner_pb2.ISING_SAMPLE,
         miner_pb2.JOB_KIND_UNSPECIFIED,
@@ -88,11 +108,7 @@ def _validate_job(
     ising = job.ising if job.HasField("ising") else miner_pb2.IsingProblem()
 
     try:
-        h_milli = decode_milli_i32(ising.h_milli_le32)
-    except ValueError:
-        raise _Rejected(miner_pb2.MALFORMED) from None
-    try:
-        j_milli = decode_milli_i32(ising.j_milli_le32) if ising.j_milli_le32 else []
+        h_milli, j_milli = decode_coefficients_milli(ising)
     except ValueError:
         raise _Rejected(miner_pb2.MALFORMED) from None
 
@@ -139,6 +155,16 @@ def _resolve_problem(
             len(edges),
         )
         raise _Rejected(miner_pb2.MALFORMED)
+
+    for u, v in edges:
+        if int(u) == int(v):
+            logger.warning(
+                "job %s: edge (%d, %d) is a self-loop; rejecting MALFORMED",
+                job_id.hex(),
+                u,
+                v,
+            )
+            raise _Rejected(miner_pb2.MALFORMED)
 
     # Dense positional edges for MILP / scoring (0..n-1).
     if edges and nodes and (min(nodes) != 0 or set(nodes) != set(range(len(nodes)))):
@@ -222,7 +248,7 @@ def handle_job(
 
     if not h_milli:
         # Empty problem: energy 0, no variables.
-        sol = miner_pb2.Solution(spins_bytes=b"", energy_milli=0)
+        sol = miner_pb2.Solution(spins=b"", energy_milli=0)
         meta = miner_pb2.SamplerMeta(reads=1, sweeps=0, device_access_time_us=0)
         return [
             miner_pb2.MinerMsg(
@@ -260,7 +286,7 @@ def handle_job(
     energy = ising_energy_milli(spins, h_milli, j_milli, edges)
 
     solution = miner_pb2.Solution(
-        spins_bytes=spins_to_bytes(spins),
+        spins=pack_spins(spins),
         energy_milli=energy,
     )
     meta = miner_pb2.SamplerMeta(

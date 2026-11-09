@@ -17,28 +17,50 @@ import grpc
 from quip_solver_core import miner_pb2, miner_pb2_grpc
 from quip_solver_core import session as session_sdk
 
-from quip_miner_cuopt import (
-    ALGORITHM,
-    BACKEND,
+from quip_solver_cuopt import (
     EXIT_CLEAN,
+    EXIT_CONFIG_INVALID,
     EXIT_INTERNAL_FATAL,
     EXIT_TOKEN_REJECTED,
+    MAX_EDGES,
+    MAX_NODES,
 )
-from quip_miner_cuopt.client import CuoptClient
-from quip_miner_cuopt.config import warn_unknown_backend_keys
-from quip_miner_cuopt.job import handle_job
+from quip_solver_cuopt.client import CuoptClient
+from quip_solver_cuopt.config import warn_unknown_backend_keys
+from quip_solver_cuopt.job import handle_job
 
 logger = logging.getLogger(__name__)
 
 _STOP = object()
 
-# Operator log token. Distinct from BACKEND ("cuopt-milp"), which is the
-# protocol advertisement. Mixed-fleet lines use [quip-solver-cuopt].
+# Operator log token. Distinct from the advertised backend (BACKEND_EXEC),
+# which the wire has no cuOpt value for. Mixed-fleet lines use [quip-solver-cuopt].
 _LOG_BACKEND = "cuopt"
 
 
+def capabilities_message() -> miner_pb2.Capabilities:
+    """What this solver supports, sent in Hello and printed by --capabilities.
+
+    The wire has no cuOpt backend or MILP algorithm value: ``EXEC`` names a
+    solver that hands the job to an external service, and ``EXTERNAL`` an
+    algorithm with no dedicated value. One job runs at a time, and only I32
+    coefficients are accepted.
+    """
+    return miner_pb2.Capabilities(
+        backend=miner_pb2.BACKEND_EXEC,
+        algorithm=miner_pb2.ALGORITHM_EXTERNAL,
+        supported_kinds=[miner_pb2.ISING_SAMPLE],
+        max_nodes=MAX_NODES,
+        max_edges=MAX_EDGES,
+        features=[],
+        protocol_version=session_sdk.PROTOCOL_VERSION,
+        stream_width=1,
+        encodings=[miner_pb2.COEFFICIENT_ENCODING_I32],
+    )
+
+
 def _short_job_id(job_id: bytes) -> str:
-    """Render the leading bytes of a job id, matching quip-miner-core."""
+    """Render the leading bytes of a job id, matching quip-solver-core."""
     head = bytes(job_id[:8]).hex()
     if len(job_id) > 8:
         return head + ".."
@@ -206,12 +228,7 @@ def run_session(
     """Run one miner session; return a process exit code."""
     target = _unix_target(coordinator_uri)
     try:
-        hello = session_sdk.build_hello(
-            miner_id,
-            BACKEND,
-            ALGORITHM,
-            [miner_pb2.ISING_SAMPLE],
-        )
+        hello = session_sdk.build_hello(miner_id, capabilities_message())
     except session_sdk.MissingToken:
         logger.error("QUIP_SESSION_TOKEN unset")
         return EXIT_TOKEN_REJECTED
@@ -339,19 +356,24 @@ def run_session(
             last_activity = time.monotonic()
             which = cm.WhichOneof("msg")
             if which == "welcome":
-                ver = cm.welcome.protocol_version
-                if ver not in (0, 1):
-                    logger.error("bad Welcome protocol_version=%s", ver)
+                try:
+                    session_sdk.check_welcome(cm.welcome)
+                except session_sdk.BadWelcome:
+                    logger.error(
+                        "bad Welcome protocol_version=%s", cm.welcome.protocol_version
+                    )
+                    # 64, not 70: a version-skewed coordinator is a config
+                    # error the supervisor must not respawn into.
                     out_q.put(
                         miner_pb2.MinerMsg(
                             fatal=miner_pb2.Fatal(
-                                exit_code=EXIT_INTERNAL_FATAL,
+                                exit_code=EXIT_CONFIG_INVALID,
                                 reason="bad welcome protocol_version",
                                 restart_required=False,
                             )
                         )
                     )
-                    exit_code = EXIT_INTERNAL_FATAL
+                    exit_code = EXIT_CONFIG_INVALID
                     break
             elif which == "configure":
                 config = session_sdk.session_config_from_configure(
@@ -410,6 +432,8 @@ def run_session(
                 with state_lock:
                     done = jobs_done
                 out_q.put(_status(miner_id, done))
+            elif which == "get_capabilities":
+                out_q.put(miner_pb2.MinerMsg(capabilities=capabilities_message()))
             elif which == "shutdown":
                 grace_ms = cm.shutdown.grace_ms or 5000
                 break

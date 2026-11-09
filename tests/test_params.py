@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from quip_solver_core import miner_pb2
 
-from quip_miner_cuopt import DEFAULT_TIME_LIMIT_S
-from quip_miner_cuopt.client import resolve_time_limit_s
-from quip_miner_cuopt.job import sampling_params
+from quip_solver_cuopt import DEFAULT_TIME_LIMIT_S
+from quip_solver_cuopt.client import resolve_time_limit_s
+from quip_solver_cuopt.job import sampling_params
 
 
 def _ising(*, num_reads: int = 0, anneal_time_us: int = 0) -> miner_pb2.IsingProblem:

@@ -1,6 +1,6 @@
-"""NVIDIA cuOpt MILP Ising miner for the quip.network v0.3 protocol.
+"""NVIDIA cuOpt MILP Ising miner for quip.network protocol version 2.
 
-Binary entry point: ``quip-cuopt-milp`` (``python -m quip_miner_cuopt``).
+Binary entry point: ``quip-cuopt-milp`` (``python -m quip_solver_cuopt``).
 """
 
 __version__ = "0.3.0rc1"
@@ -12,8 +12,9 @@ EXIT_ENV_INCOMPATIBLE = 69
 EXIT_INTERNAL_FATAL = 70
 EXIT_TOKEN_REJECTED = 77
 
-BACKEND = "cuopt"
-ALGORITHM = "milp"
+# Size caps advertised in Hello and --capabilities.
+MAX_NODES = 20000
+MAX_EDGES = 200000
 
 DEFAULT_CUOPT_URL = "http://localhost:5000"
 # Documented CLI/env default when anneal_time_us is unset at every level.

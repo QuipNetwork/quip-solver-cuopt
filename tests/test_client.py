@@ -9,14 +9,14 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from quip_miner_cuopt.client import (
+from quip_solver_cuopt.client import (
     CuoptClient,
     CuoptError,
     encode_milp_request,
     parse_solution,
     resolve_time_limit_s,
 )
-from quip_miner_cuopt.linearize import linearize
+from quip_solver_cuopt.linearize import linearize
 
 
 class _Handler(BaseHTTPRequestHandler):
